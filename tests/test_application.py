@@ -1,5 +1,6 @@
 from app.models import Device, SecurityAlert, SecurityLog, ThreatEvent, User
 from app.threat_detection import classify_event
+from config import normalize_database_url
 from extensions import db
 from tests.conftest import new_test_password, sign_in
 
@@ -108,6 +109,18 @@ def test_detection_rules_cover_all_severity_bands():
         assert classify_event("failed_login_attempts", {"count": count}).severity == severity
 
 
+def test_database_url_normalizes_render_postgres_schemes():
+    assert normalize_database_url("postgres://user:password@db.example/campus") == (
+        "postgresql+psycopg://user:password@db.example/campus"
+    )
+    assert normalize_database_url("postgresql://user:password@db.example/campus") == (
+        "postgresql+psycopg://user:password@db.example/campus"
+    )
+    assert normalize_database_url("mysql+pymysql://user:password@db.example/campus") == (
+        "mysql+pymysql://user:password@db.example/campus"
+    )
+
+
 def test_api_rejects_unknown_event_type(client):
     sign_in(client)
     response = client.post("/api/events", json={"event_type": "real_network_scan", "device_id": 1})
@@ -211,3 +224,12 @@ def test_production_rejects_missing_secret():
 
     with pytest.raises(RuntimeError, match="private SECRET_KEY"):
         create_app({"APP_ENV": "production", "SECRET_KEY": None, "TESTING": True})
+
+
+def test_production_rejects_sqlite_database():
+    import pytest
+    from app import create_app
+
+    with pytest.raises(RuntimeError, match="persistent production database"):
+        create_app({"APP_ENV": "production", "SECRET_KEY": "test-production-key",
+                    "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", "TESTING": True})

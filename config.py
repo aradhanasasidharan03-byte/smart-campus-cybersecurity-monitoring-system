@@ -1,15 +1,24 @@
 import os
 from pathlib import Path
 
+from sqlalchemy.engine import make_url
+
 
 BASE_DIR = Path(__file__).resolve().parent
+
+
+def normalize_database_url(database_url):
+    url = make_url(database_url)
+    if url.drivername in {"postgres", "postgresql"}:
+        url = url.set(drivername="postgresql+psycopg")
+    return url.render_as_string(hide_password=False)
 
 
 class Config:
     APP_ENV = os.environ.get("APP_ENV", "development").lower()
     SECRET_KEY = os.environ.get("SECRET_KEY")
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{BASE_DIR / 'campus_security.db'}"
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(
+        os.environ.get("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'campus_security.db'}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}

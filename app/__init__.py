@@ -3,6 +3,7 @@ import warnings
 
 from flask import Flask, render_template
 from flask_login import LoginManager
+from sqlalchemy.engine import make_url
 
 from config import BASE_DIR, Config
 from extensions import csrf, db
@@ -26,6 +27,9 @@ def create_app(test_config=None):
         app.config["SECRET_KEY"] = secrets.token_hex(32)
         warnings.warn("Using a temporary local SECRET_KEY; set SECRET_KEY in .env to preserve sessions.",
                       RuntimeWarning, stacklevel=2)
+    if (app.config.get("APP_ENV") == "production"
+            and make_url(app.config["SQLALCHEMY_DATABASE_URI"]).get_backend_name() == "sqlite"):
+        raise RuntimeError("Set DATABASE_URL to a persistent production database before startup.")
 
     db.init_app(app)
     csrf.init_app(app)

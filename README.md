@@ -13,11 +13,12 @@ A local-first, defensive cybersecurity monitoring platform for a simulated smart
 - Alert status workflow (New, Investigating, Resolved), searchable security audit trail, and analytics reports.
 - A profile page for changing the display name and password; role assignment remains administrator-managed.
 - CSRF-protected browser forms, parameterized SQLAlchemy queries, validated inputs, secure cookie defaults, and environment-based secrets/database configuration.
-- SQLite for zero-setup local demonstration; MySQL 8+ supported with the included schema.
+- SQLite for zero-setup local demonstration; PostgreSQL and MySQL are supported through `DATABASE_URL`.
+- Production WSGI serving with Gunicorn on Linux hosts such as Render.
 
 ## Technology
 
-Python 3.10+, Flask, Flask-Login, Flask-WTF, Flask-SQLAlchemy, MySQL/PyMySQL or SQLite, HTML5, CSS3, Bootstrap 5, JavaScript, and Chart.js.
+Python 3.10+, Flask, Flask-Login, Flask-WTF, Flask-SQLAlchemy, SQLAlchemy, SQLite, PostgreSQL/psycopg, MySQL/PyMySQL, Gunicorn, HTML5, CSS3, Bootstrap 5, JavaScript, and Chart.js.
 
 ## Architecture
 
@@ -27,7 +28,7 @@ app/
   security.py               Role authorization decorators
   seed.py                    Reproducible demo accounts and telemetry
   threat_detection.py        Pure rule-based classifier and risk bands
-  threat_service.py           Shared detection, risk, alert, and audit persistence
+  threat_service.py          Shared detection, risk, alert, and audit persistence
   routes/
     auth.py                  Registration, login, logout
     dashboard.py             SOC overview and chart summaries
@@ -41,7 +42,8 @@ app/
   templates/                 Jinja pages and error views
 static/css, static/js/        Responsive interface and charts
 config.py, extensions.py      App configuration and Flask extensions
-run.py                       Local entry point
+run.py                       Local entry point (honors PORT)
+wsgi.py                      Production WSGI application entry point
 ```
 
 ## Installation
@@ -65,7 +67,7 @@ run.py                       Local entry point
 
 ## MySQL setup
 
-Use MySQL 8 or later. Create the database and relational schema with the included SQL file:
+Use MySQL 8 or later. Create the database and relational schema with the included MySQL-specific SQL file:
 
 ```powershell
 mysql -u root -p < database.sql
@@ -77,7 +79,41 @@ Create an application-specific MySQL user with access only to `smart_campus_secu
 DATABASE_URL=mysql+pymysql://YOUR_DB_USER:YOUR_DB_PASSWORD@localhost/smart_campus_security?charset=utf8mb4
 ```
 
-The app creates any missing application tables and seeds demo users, devices, alerts, logs, threat events, and a report on first start. Existing user data prevents reseeding, so seed only a new/empty database. The database schema uses InnoDB foreign keys and JSON columns; the demo is designed for MySQL 8+.
+The app creates any missing application tables and seeds demo users, devices, alerts, logs, threat events, and a report on first start. Existing user data prevents reseeding, so seed only a new/empty database. The schema file uses InnoDB foreign keys and JSON columns. The application also supports PostgreSQL; its tables are created from the SQLAlchemy models, so do not run the MySQL-specific `database.sql` against PostgreSQL.
+
+## Deploy to Render
+
+1. Push this project to a GitHub repository and create a Render **PostgreSQL** database and **Web Service** in the same region. Use the database's **Internal Database URL** for the web service's `DATABASE_URL` environment variable.
+2. Set the Web Service build command to:
+
+    ```text
+    pip install -r requirements.txt
+    ```
+
+3. Set the Web Service start command to:
+
+    ```text
+    gunicorn --bind 0.0.0.0:$PORT --workers 2 --access-logfile - --error-logfile - wsgi:app
+    ```
+
+4. Set these environment variables in the Render dashboard. Do not add their values to source control:
+
+    | Variable | Value |
+    |---|---|
+    | `APP_ENV` | `production` |
+    | `SECRET_KEY` | Generate a private random value in Render (at least 32 random bytes). |
+    | `DATABASE_URL` | Render PostgreSQL Internal Database URL, or a production MySQL URL using `mysql+pymysql://`. |
+    | `COOKIE_SECURE` | `true` |
+    | `SEED_DEMO` | Temporarily `true` only for a new academic demo database. |
+    | `DEMO_ADMIN_PASSWORD` | Unique strong value, required when production demo seeding is enabled. |
+    | `DEMO_ANALYST_PASSWORD` | Unique strong value, required when production demo seeding is enabled. |
+    | `DEMO_VIEWER_PASSWORD` | Unique strong value, required when production demo seeding is enabled. |
+
+    Render supplies `PORT`; do not set a fixed production port. On first deployment with a new demo database, `SEED_DEMO=true` provisions the accounts and sample campus data. After confirming initialization, set `SEED_DEMO=false` and remove the three demo-password variables from Render. Existing database users are not reseeded. For a non-demo deployment, use a separately provisioned Admin account and leave demo seeding disabled.
+
+5. Optionally set the Render health-check path to `/api/health`. Confirm the first deploy's logs show a successful database connection and that login works before sharing the service URL.
+
+Render's `postgres://` and `postgresql://` connection URLs are normalized to the installed `psycopg` driver. SQLite remains the local default; production startup deliberately rejects SQLite so an ephemeral deployment cannot appear healthy while losing data on restart. The included `database.sql` is MySQL-specific; PostgreSQL schema is generated from the application models.
 
 ## Run locally
 
@@ -85,7 +121,7 @@ The app creates any missing application tables and seeds demo users, devices, al
 python run.py
 ```
 
-Open http://127.0.0.1:5000. `run.py` loads `.env` before configuration. For production, set `APP_ENV=production`, use a strong private `SECRET_KEY`, set `COOKIE_SECURE=true`, and configure a production WSGI server; the Flask development server is for local academic demonstration only. Demo seeding defaults off in production.
+Open http://127.0.0.1:5000. `run.py` loads `.env` before configuration and honors `PORT` (default `5000`). For production, set `APP_ENV=production`, use a strong private `SECRET_KEY`, set `COOKIE_SECURE=true`, and use Gunicorn; the Flask development server is for local academic demonstration only. Demo seeding defaults off in production.
 
 ## Demo accounts
 
