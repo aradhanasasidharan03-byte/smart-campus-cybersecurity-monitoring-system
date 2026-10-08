@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Sign in{% endblock %}
+{% block auth_content %}
+<section class="auth-panel">
+  <a class="brand auth-brand" href="{{ url_for('auth.login') }}"><span class="brand-mark"><i class="bi bi-shield-check"></i></span><span>SENTRY<small>CAMPUS SOC</small></span></a>
+  <div class="auth-kicker"><span class="live-dot"></span> CAMPUS SECURITY OPERATIONS</div>
+  <h1>Welcome back.</h1><p class="auth-subtitle">Sign in to your monitoring workspace.</p>
+  <form method="post" class="auth-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="email">Work email</label><input id="email" name="email" type="email" autocomplete="username" placeholder="name@campus.edu" required maxlength="160" value="{{ request.form.get('email', '') }}">
+    <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+    <button class="btn-primary-wide" type="submit">Sign in <i class="bi bi-arrow-right"></i></button>
+  </form>
+  <div class="auth-bottom">New to the workspace? <a href="{{ url_for('auth.register') }}">Create a viewer account</a></div>
+  <div class="demo-hint"><i class="bi bi-info-circle"></i><span>Fresh demo passwords appear in the server console. Existing demo databases keep their current passwords.</span></div>
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Create account{% endblock %}
+{% block auth_content %}
+<section class="auth-panel">
+  <a class="brand auth-brand" href="{{ url_for('auth.login') }}"><span class="brand-mark"><i class="bi bi-shield-check"></i></span><span>SENTRY<small>CAMPUS SOC</small></span></a>
+  <div class="auth-kicker"><span class="live-dot"></span> ACCOUNT PROVISIONING</div>
+  <h1>Join the workspace.</h1><p class="auth-subtitle">New registrations receive read-only Viewer access.</p>
+  <form method="post" class="auth-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="name">Full name</label><input id="name" name="name" autocomplete="name" placeholder="Your name" required minlength="2" maxlength="100" value="{{ request.form.get('name', '') }}">
+    <label for="email">Work email</label><input id="email" name="email" type="email" autocomplete="email" placeholder="name@campus.edu" required maxlength="160" value="{{ request.form.get('email', '') }}">
+    <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="new-password" placeholder="12 characters minimum" required minlength="12">
+    <button class="btn-primary-wide" type="submit">Create account <i class="bi bi-arrow-right"></i></button>
+  </form>
+  <div class="auth-bottom">Already registered? <a href="{{ url_for('auth.login') }}">Sign in</a></div>
+</section>
+{% endblock %}
